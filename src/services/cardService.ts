@@ -10,6 +10,36 @@ import { findEmployeeId } from "./employeeService.js";
 import * as cardUtils from "../utils/cardUtils.js";
 dotenv.config();
 
+export async function activateCard(id: number, CVC: string, password: string) {
+    const card = await cardRepository.findById(id);
+    if (!id) throw { code: "NotFound", message: "Este cartão não existe!" };
+    const expirationDateVerify = verifyCardExpiration(card.expirationDate);
+    if (expirationDateVerify)
+        throw { code: "NotAllowed", message: "Cartão expirado" };
+    if (card.password)
+        throw { code: "Exists", message: "Este cartão já está ativado!" };
+    if(!verifyCVC(CVC, card.securityCode)) throw {code: "NotAllowed", message: "Verifique o CVC!"}
+    /* JÁ POSSUI UM REGEX QUE VERIFICA SE A SENHA TEM 4 DIGITOS NO SCHEMA */
+    await cardRepository.update(id, { password: cryptPassword(password) });
+}
+function cryptPassword(password: string) {
+    const cryptr = new Cryptr(process.env.SECRET_KEY);
+    return cryptr.encrypt(password);
+}
+
+function verifyCardExpiration(expirationDate: string) {
+    const expirationDateFormated = dayjs(`01/${expirationDate}`);
+    const today = dayjs();
+    const diff = dayjs(today).isAfter(dayjs(expirationDateFormated));
+    return diff;
+}
+function verifyCVC(CVC: string, criptedCVC: string) {
+    const cryptr = new Cryptr(process.env.SECRET_KEY);
+    const decriptedCVC = cryptr.decrypt(criptedCVC);
+    if (decriptedCVC === CVC) return true;
+    return false;
+}
+
 export async function createCard(
     ApiKey: string,
     employeeId: number,
@@ -33,17 +63,17 @@ function buildCard(
         employeeId: employee.id,
         number: faker.finance.creditCardNumber(),
         cardholderName: cardUtils.generateNameToCard(employee.fullName),
-        securityCode: generateCVV(),
-        expirationDate: dayjs().add(5, "year").format("MM-YY"),
+        securityCode: generateCVC(),
+        expirationDate: dayjs().add(5, "year").format("MM/YY"),
         type,
         isVirtual: false,
         isBlocked: false,
     };
     return card;
 }
-function generateCVV() {
-    const CVV = faker.finance.creditCardCVV();
+function generateCVC() {
+    const CVC = faker.finance.creditCardCVV();
+    console.log(CVC);
     const hash = new Cryptr(process.env.SECRET_KEY);
-    return hash.encrypt(CVV);
+    return hash.encrypt(CVC);
 }
-
