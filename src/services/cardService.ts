@@ -10,6 +10,17 @@ import { findEmployeeId } from "./employeeService.js";
 import * as cardUtils from "../utils/cardUtils.js";
 import * as paymentService from "./paymentServices.js";
 import * as rechageService from "./rechargeServices.js";
+
+export async function blockCard(id: number, password: string){
+    const card = await cardRepository.findById(id);
+    if(!card) throw { code: "NotFound", message: "Este cartão não está cadastrado!"}
+    console.log(card.expirationDate)
+    if(verifyCardExpiration(card.expirationDate)) throw {code: "NotAllowed", message: "Cartão está vencido!"}
+    if(!verifyPassword(password, card.password)) throw {code: "NotAllowed", message: "Senha incorreta!"}
+    if(card.isBlocked) throw { code: "NotAllowed", message: "Este cartão já está bloqueado!"}
+    /* A SENHA JÁ FOI VERIFICADA NO SCHEMA */
+    await cardRepository.update(id, { isBlocked: true})
+}
 dotenv.config();
 
 export async function getStatement(id: number) {
@@ -41,6 +52,11 @@ export async function activateCard(id: number, CVC: string, password: string) {
         throw { code: "NotAllowed", message: "Verifique o CVC!" };
     /* JÁ POSSUI UM REGEX QUE VERIFICA SE A SENHA TEM 4 DIGITOS NO SCHEMA */
     await cardRepository.update(id, { password: cryptPassword(password) });
+}
+function verifyPassword(password: string, cryptedPassowd: string){
+    const crypt = new Cryptr(process.env.SECRET_KEY)
+    if(password === crypt.decrypt(cryptedPassowd)) return true;
+    return false;
 }
 function cryptPassword(password: string) {
     const cryptr = new Cryptr(process.env.SECRET_KEY);
