@@ -21,6 +21,17 @@ export async function blockCard(id: number, password: string){
     /* A SENHA JÁ FOI VERIFICADA NO SCHEMA */
     await cardRepository.update(id, { isBlocked: true})
 }
+export async function unblockCard(id: number, password: string){
+    const card = await cardRepository.findById(id);
+    if(!card) throw { code: "NotFound", message: "Este cartão não está cadastrado!"}
+    console.log(card.expirationDate)
+    if(verifyCardExpiration(card.expirationDate)) throw {code: "NotAllowed", message: "Cartão está vencido!"}
+    if(!verifyPassword(password, card.password)) throw {code: "NotAllowed", message: "Senha incorreta!"}
+    if(!card.isBlocked) throw { code: "NotAllowed", message: "Este cartão já está desbloqueado!"}
+    /* A SENHA JÁ FOI VERIFICADA NO SCHEMA */
+    await cardRepository.update(id, { isBlocked: false})
+}
+
 dotenv.config();
 
 export async function getStatement(id: number) {
