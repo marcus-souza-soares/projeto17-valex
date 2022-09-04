@@ -8,7 +8,26 @@ import * as cardRepository from "../repositories/cardRepository.js";
 import { findCompanyByApiKey } from "./companyService.js";
 import { findEmployeeId } from "./employeeService.js";
 import * as cardUtils from "../utils/cardUtils.js";
+import * as paymentService from "./paymentServices.js";
+import * as rechageService from "./rechargeServices.js";
 dotenv.config();
+
+export async function getStatement(id: number) {
+    const recharges = await rechageService.getRechargesByCardId(id);
+    const payments = await paymentService.getPaymentsByCardId(id);
+    const card = await cardRepository.findById(id);
+    if(!card) throw { code: "NotFound", message: "Esse cartão não existe"}
+    const totalRecharges = recharges.reduce(
+        (total, recharge) => total + recharge.amount,
+        0
+    );
+    const totalPayments = payments.reduce(
+        (total, payment) => total + payment.amount,
+        0
+    );
+    const balance =  totalRecharges - totalPayments;
+    return { balance, transactions: payments, recharges }
+}
 
 export async function activateCard(id: number, CVC: string, password: string) {
     const card = await cardRepository.findById(id);
@@ -18,7 +37,8 @@ export async function activateCard(id: number, CVC: string, password: string) {
         throw { code: "NotAllowed", message: "Cartão expirado" };
     if (card.password)
         throw { code: "Exists", message: "Este cartão já está ativado!" };
-    if(!verifyCVC(CVC, card.securityCode)) throw {code: "NotAllowed", message: "Verifique o CVC!"}
+    if (!verifyCVC(CVC, card.securityCode))
+        throw { code: "NotAllowed", message: "Verifique o CVC!" };
     /* JÁ POSSUI UM REGEX QUE VERIFICA SE A SENHA TEM 4 DIGITOS NO SCHEMA */
     await cardRepository.update(id, { password: cryptPassword(password) });
 }

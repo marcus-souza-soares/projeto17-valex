@@ -17,3 +17,9 @@ export async function activateCard(req: Request, res: Response){
     await cardService.activateCard(Number(id), cvc, password);
     res.sendStatus(200);
 }
+export async function statement(req: Request, res: Response){
+    const { id } = req.params;
+    if(!id || Number(id) % 1 !== 0) return res.status(401).send("Insira o id corretamente!");
+    const statement = await cardService.getStatement(Number(id));
+    res.status(200).send(statement);
+}
