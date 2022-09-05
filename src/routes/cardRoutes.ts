@@ -8,7 +8,7 @@ import { blockCardSchema } from "../schemas/blockCardSchema.js";
 const cardRouters = Router();
 
 cardRouters.post("/createcard", schemaValidate(createCardSchema), createCard);
-cardRouters.post("/activatecard/:id", schemaValidate(activateSchema), activateCard)
+cardRouters.post("/activatecard/:id", schemaValidate(activateSchema), ()=> console.log("foii"))
 cardRouters.get("/cardstatement/:id", statement);
 cardRouters.patch("/card/:id/block", schemaValidate(blockCardSchema), blockCard);
 cardRouters.patch("/card/:id/unblock", schemaValidate(blockCardSchema), unblockCard)
