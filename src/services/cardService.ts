@@ -8,8 +8,10 @@ import * as cardRepository from "../repositories/cardRepository.js";
 import { findCompanyByApiKey } from "./companyService.js";
 import { findEmployeeId } from "./employeeService.js";
 import * as cardUtils from "../utils/cardUtils.js";
-import * as paymentService from "./paymentServices.js";
-import * as rechageService from "./rechargeServices.js";
+import * as paymentService from "./paymentService.js";
+import * as rechageService from "./rechargeService.js";
+
+dotenv.config();
 
 export async function blockCard(id: number, password: string) {
     const card = await cardRepository.findById(id);
@@ -43,8 +45,6 @@ export async function unblockCard(id: number, password: string) {
     await cardRepository.update(id, { isBlocked: false });
 }
 
-dotenv.config();
-
 export async function getStatement(id: number) {
     const recharges = await rechageService.getRechargesByCardId(id);
     const payments = await paymentService.getPaymentsByCardId(id);
@@ -75,7 +75,7 @@ export async function activateCard(id: number, CVC: string, password: string) {
     /* JÁ POSSUI UM REGEX QUE VERIFICA SE A SENHA TEM 4 DIGITOS NO SCHEMA */
     await cardRepository.update(id, { password: cryptPassword(password) });
 }
-function verifyPassword(password: string, cryptedPassowd: string) {
+export function verifyPassword(password: string, cryptedPassowd: string) {
     const crypt = new Cryptr(process.env.SECRET_KEY);
     if (password === crypt.decrypt(cryptedPassowd)) return true;
     return false;
