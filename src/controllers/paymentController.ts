@@ -9,3 +9,4 @@ export async function payment(req: Request, res: Response) {
     await insert(businessId, Number(id), amount, password);
     res.status(200).send("OK");
 }
+//248
