@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import Cryptr from "cryptr";
 import dotenv from "dotenv";
 import * as employeeRepository from "../repositories/employeeRepository.js";
-import * as companyRepository from "../repositories/companyRepository.js";
+import * as companyService from "../services/companyService.js";
 import * as cardRepository from "../repositories/cardRepository.js";
 import { findCompanyByApiKey } from "./companyService.js";
 import { findEmployeeId } from "./employeeService.js";
@@ -11,25 +11,36 @@ import * as cardUtils from "../utils/cardUtils.js";
 import * as paymentService from "./paymentServices.js";
 import * as rechageService from "./rechargeServices.js";
 
-export async function blockCard(id: number, password: string){
+export async function blockCard(id: number, password: string) {
     const card = await cardRepository.findById(id);
-    if(!card) throw { code: "NotFound", message: "Este cartão não está cadastrado!"}
-    console.log(card.expirationDate)
-    if(verifyCardExpiration(card.expirationDate)) throw {code: "NotAllowed", message: "Cartão está vencido!"}
-    if(!verifyPassword(password, card.password)) throw {code: "NotAllowed", message: "Senha incorreta!"}
-    if(card.isBlocked) throw { code: "NotAllowed", message: "Este cartão já está bloqueado!"}
+    if (!card)
+        throw { code: "NotFound", message: "Este cartão não está cadastrado!" };
+    console.log(card.expirationDate);
+    if (verifyCardExpiration(card.expirationDate))
+        throw { code: "NotAllowed", message: "Cartão está vencido!" };
+    if (!verifyPassword(password, card.password))
+        throw { code: "NotAllowed", message: "Senha incorreta!" };
+    if (card.isBlocked)
+        throw { code: "NotAllowed", message: "Este cartão já está bloqueado!" };
     /* A SENHA JÁ FOI VERIFICADA NO SCHEMA */
-    await cardRepository.update(id, { isBlocked: true})
+    await cardRepository.update(id, { isBlocked: true });
 }
-export async function unblockCard(id: number, password: string){
+export async function unblockCard(id: number, password: string) {
     const card = await cardRepository.findById(id);
-    if(!card) throw { code: "NotFound", message: "Este cartão não está cadastrado!"}
-    console.log(card.expirationDate)
-    if(verifyCardExpiration(card.expirationDate)) throw {code: "NotAllowed", message: "Cartão está vencido!"}
-    if(!verifyPassword(password, card.password)) throw {code: "NotAllowed", message: "Senha incorreta!"}
-    if(!card.isBlocked) throw { code: "NotAllowed", message: "Este cartão já está desbloqueado!"}
+    if (!card)
+        throw { code: "NotFound", message: "Este cartão não está cadastrado!" };
+    console.log(card.expirationDate);
+    if (verifyCardExpiration(card.expirationDate))
+        throw { code: "NotAllowed", message: "Cartão está vencido!" };
+    if (!verifyPassword(password, card.password))
+        throw { code: "NotAllowed", message: "Senha incorreta!" };
+    if (!card.isBlocked)
+        throw {
+            code: "NotAllowed",
+            message: "Este cartão já está desbloqueado!",
+        };
     /* A SENHA JÁ FOI VERIFICADA NO SCHEMA */
-    await cardRepository.update(id, { isBlocked: false})
+    await cardRepository.update(id, { isBlocked: false });
 }
 
 dotenv.config();
@@ -38,7 +49,7 @@ export async function getStatement(id: number) {
     const recharges = await rechageService.getRechargesByCardId(id);
     const payments = await paymentService.getPaymentsByCardId(id);
     const card = await cardRepository.findById(id);
-    if(!card) throw { code: "NotFound", message: "Esse cartão não existe"}
+    if (!card) throw { code: "NotFound", message: "Esse cartão não existe" };
     const totalRecharges = recharges.reduce(
         (total, recharge) => total + recharge.amount,
         0
@@ -47,8 +58,8 @@ export async function getStatement(id: number) {
         (total, payment) => total + payment.amount,
         0
     );
-    const balance =  totalRecharges - totalPayments;
-    return { balance, transactions: payments, recharges }
+    const balance = totalRecharges - totalPayments;
+    return { balance, transactions: payments, recharges };
 }
 
 export async function activateCard(id: number, CVC: string, password: string) {
@@ -64,9 +75,9 @@ export async function activateCard(id: number, CVC: string, password: string) {
     /* JÁ POSSUI UM REGEX QUE VERIFICA SE A SENHA TEM 4 DIGITOS NO SCHEMA */
     await cardRepository.update(id, { password: cryptPassword(password) });
 }
-function verifyPassword(password: string, cryptedPassowd: string){
-    const crypt = new Cryptr(process.env.SECRET_KEY)
-    if(password === crypt.decrypt(cryptedPassowd)) return true;
+function verifyPassword(password: string, cryptedPassowd: string) {
+    const crypt = new Cryptr(process.env.SECRET_KEY);
+    if (password === crypt.decrypt(cryptedPassowd)) return true;
     return false;
 }
 function cryptPassword(password: string) {
@@ -74,7 +85,7 @@ function cryptPassword(password: string) {
     return cryptr.encrypt(password);
 }
 
-function verifyCardExpiration(expirationDate: string) {
+export function verifyCardExpiration(expirationDate: string) {
     const expirationDateFormated = dayjs(`01/${expirationDate}`);
     const today = dayjs();
     const diff = dayjs(today).isAfter(dayjs(expirationDateFormated));
@@ -92,17 +103,17 @@ export async function createCard(
     employeeId: number,
     type: cardRepository.TransactionTypes
 ) {
-    const result: object = await companyRepository.findByApiKey(ApiKey);
+    const result: object = await companyService.findCompanyByApiKey(ApiKey);
     if (!result) throw { code: "NotFound", message: "Empresa não cadastrada!" };
     await findCompanyByApiKey(ApiKey);
     const employee = await findEmployeeId(employeeId);
     const card = await cardRepository.findByTypeAndEmployeeId(type, employeeId);
     if (card)
         throw { code: "Exists", message: "Este cartão já está cadastrado!" };
-    await cardRepository.insert(buildCard(employee, type));
+    await cardRepository.insert(buildCardData(employee, type));
 }
 
-function buildCard(
+function buildCardData(
     employee: employeeRepository.Employee,
     type: cardRepository.TransactionTypes
 ) {
@@ -123,4 +134,8 @@ function generateCVC() {
     console.log(CVC);
     const hash = new Cryptr(process.env.SECRET_KEY);
     return hash.encrypt(CVC);
+}
+
+export async function findCardById(id: number) {
+    return await cardRepository.findById(id);
 }
