@@ -64,7 +64,7 @@ export async function getStatement(id: number) {
 
 export async function activateCard(id: number, CVC: string, password: string) {
     const card = await cardRepository.findById(id);
-    if (!id) throw { code: "NotFound", message: "Este cartão não existe!" };
+    if (!card.id) throw { code: "NotFound", message: "Este cartão não existe!" };
     const expirationDateVerify = verifyCardExpiration(card.expirationDate);
     if (expirationDateVerify)
         throw { code: "NotAllowed", message: "Cartão expirado" };
